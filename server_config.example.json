@@ -1,0 +1,9 @@
+{
+  "max_workers": 50,
+  "request_timeout": 30,
+  "max_pattern_length": 1000,
+  "cache_size": 100,
+  "max_concurrent_connections": 1000,
+  "max_questions": 5000,
+  "max_stars": 50
+}
