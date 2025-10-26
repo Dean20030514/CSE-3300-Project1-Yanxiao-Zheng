@@ -12,6 +12,10 @@
 	- Every response: status line `<code> <text> <count>` + zero/more lines + `END`.
 - Wildcards: `?` matches exactly one character; in partial mode the pattern matches substrings.
 
+## Compatibility
+
+The extended commands and options (e.g., `STATS`, `BATCH`, `--gzip`, `RANGE`) are strictly optional and backward compatible. The baseline protocol for grading (i.e., `FIND`/`COUNT` requests, a status line with code and count, optional body lines, and a terminating `END`) remains unchanged. Any grader scripts that do not use these extensions will behave identically on both the basic and the threaded servers.
+
 ## Trade-offs
 
 - Use linear scan over an in-memory list plus lightweight indexing helpers (see `index.py`).

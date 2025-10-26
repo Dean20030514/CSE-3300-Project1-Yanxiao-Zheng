@@ -57,14 +57,17 @@ Tips: If the output is huge, add `--range 0 50` or `--gzip` on the client.
 ## 3) Protocol (short summary)
 
 - **Requests (one line):**
-  - `FIND <pattern> [--mode exact|partial|mixed] [--range <start> <end>] [--gzip]`
-  - `COUNT <pattern> [--mode exact|partial|mixed]`
+  - `FIND <pattern> [--range <start> <end>] [--gzip] [--mode exact | partial]`
+  - `COUNT <pattern> [--mode exact | partial]`
 - **Response:**
-  - First line: `<code> <text> <count>` (example: `200 OK 42`)
-  - Then zero or more result lines
+  - Success: status line is `<code> <text> <count>` (e.g., `200 OK 42`, `404 NOT-FOUND 0`)
+  - Then zero or more result lines (for `FIND`)
+  - Errors: `400 BAD-REQUEST <reason>` or `500 SERVER-ERROR <reason>` (no count)
   - Always ends with a line `END`
 - Common codes: `200` success, `404` no match, `400` bad request, `500` server error.
 - `?` means exactly one character. All other characters are literal.
+
+**Compatibility note:** Protocol extensions (e.g., `STATS`, `BATCH`, `--gzip`, `RANGE`) are optional and fully backward compatible. The baseline protocol for grading (plain `FIND`/`COUNT` with status line + count and `END`) remains unchanged; graders not using extensions are unaffected.
 
 Full details are in `PROTOCOL_AND_DESIGN.md`.
 

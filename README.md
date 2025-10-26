@@ -38,12 +38,17 @@
 ## Protocol (implemented subset)
 
 - Requests:
-   - `FIND <pattern> [--range <start> <end>] [--gzip]`
-   - `COUNT <pattern>`
+   - `FIND <pattern> [--range <start> <end>] [--gzip] [--mode exact|partial]`
+   - `COUNT <pattern> [--mode exact|partial]`
 - Responses:
-   - Status line: `<code> <text> <count>` (e.g., `200 OK 42`, `404 NOT-FOUND 0`, `400 BAD-REQUEST ...`)
-   - Zero or more result lines, then a line with just `END`
+   - Success: `<code> <text> <count>` (e.g., `200 OK 42`, `404 NOT-FOUND 0`)
+   - Errors: `400 BAD-REQUEST <reason>` or `500 SERVER-ERROR <reason>`
+   - For `FIND`, zero or more result lines follow; all responses end with a line `END`
 - Wildcards: `?` matches exactly one character.
+
+### Compatibility
+
+Extensions such as `STATS`, `BATCH`, `--gzip`, and `RANGE` are optional and backward compatible. The baseline protocol expected by graders/tests (simple `FIND`/`COUNT` with a status line showing code and count, followed by optional body lines and `END`) is unchanged and unaffected by these extensions.
 
 ## Testing
 

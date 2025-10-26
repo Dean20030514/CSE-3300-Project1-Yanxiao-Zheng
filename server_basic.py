@@ -475,6 +475,7 @@ def serve_once(conn: socket.socket, addr, words: List[str], stats: 'Stats',
         json_log("find", pattern=pattern, count=count, latency_ms=dt_find, gzip=request_gzip, request_id=request_id, remote=str(addr))
 
 def main():
+    """Single-thread server entry point: parse flags, load index, and serve one request per connection (responses always end with 'END')."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8080)
