@@ -1,72 +1,48 @@
-# Project 1: Word Search Server
+# PROTOCOL_AND_DESIGN
 
-## How It Works
+## Description
 
-We made a TCP client-server app to search words from a list. You can search with wildcards.
+- A TCP text service that searches a static word list using a simple, line-based protocol.
+- Two servers are provided:
+	- `server_basic.py`: single-thread, exact matching only; serves one request per connection.
+	- `server_threaded.py`: multi-threaded, accepts multiple requests per connection; supports exact and partial modes.
+- Protocol (client-facing) requests:
+	- `FIND <pattern> [--range <start> <end>] [--gzip] [--mode exact|partial]`
+	- `COUNT <pattern> [--mode exact|partial]`
+	- Every response: status line `<code> <text> <count>` + zero/more lines + `END`.
+- Wildcards: `?` matches exactly one character; in partial mode the pattern matches substrings.
 
-Two server types:
+## Trade-offs
 
-- **Basic server** (`server_basic.py`): Handles one client at a time. Uses exact matching - pattern must match whole word.
-- **Threaded server** (`server_threaded.py`): Handles many clients at once. Uses partial matching by default - pattern can match any part of word.
+- Use linear scan over an in-memory list plus lightweight indexing helpers (see `index.py`).
+	- Pros: simple to implement, predictable behavior, low engineering risk for the assignment size.
+	- Cons: not optimal for very large datasets; no persistence or advanced ranking.
+- Concurrency via threads (thread pool in the threaded server).
+	- Pros: straightforward; good enough for I/O-bound requests at class scale.
+	- Cons: context-switch overhead; Python GIL limits CPU-bound scaling.
 
-Both servers load the word list at start. Clients connect and send text commands.
+## Extensions (future work ideas)
 
-## Protocol
+- Pattern features: `*` multi-char wildcard, character classes, escape sequences.
+- Caching: LRU for hot patterns; negative-cache for obvious misses.
+- Health/Stats: richer `/health` HTTP or a `STATS` protocol extension for observability.
+- Indexing: prefix/suffix maps, trigram index, or a compact automaton for faster search.
+- Robustness: rate limits, per-connection timeouts, backpressure, graceful shutdown hooks.
 
-**Client sends:**
+## Test cases
 
-```text
-FIND <pattern>
-QUIT
-```
+- Core happy paths:
+	- `FIND a?t` (exact) returns expected matches and ends with `END`.
+	- `COUNT a?t` returns the same count as `FIND` for the same pattern.
+- Large output handling:
+	- `FIND ?????? --range 0 50` returns a bounded page and still ends with `END`.
+	- `FIND ell --gzip` compresses the body (client decodes `GZIP <base64>`).
+- Concurrency/integration:
+	- Threaded server handles many simultaneous `COUNT` requests without errors.
 
-**Server replies:**
+Screenshots: see `screens/` for the four required cases and passing tests.
 
-```text
-<code> <text> <count>
-<word1>
-<word2>
-...
-END
-```
+Known boundaries:
 
-- Codes: `200 OK` (found), `404 NOT-FOUND` (none), `400 BAD-REQUEST` (error)
-- Server prints the count to console for grading
-
-## Design Choices
-
-- **Simple protocol**: Easy to read and write. Uses status codes like HTTP.
-- **Threads**: Each client gets a thread. Good for small number of clients.
-- **Regex matching**: Fast enough for our word list. For bigger lists, we could use indexes.
-
-## Extra Features
-
-- **Timeout**: Close dead connections
-- **Paging**: Get parts of big results
-- **Compression**: Send less data over network
-- **Auth**: Add login if needed
-- **Async**: Better for many clients
-
-## Testing
-
-Run threaded server in partial mode:
-
-```powershell
-python server_threaded.py --host 127.0.0.1 --port 8081 --wordlist wordlist.txt --mode partial
-python client_multi.py --host 127.0.0.1 --port 8081
-```
-
-Test queries and expected counts:
-
-- `??????????` → 24071
-- `?` → 69903
-- `?(a)` → 414
-- `-?-` → 13
-
-Take screenshots of client and server windows.
-
-## Code Sources
-
-- Socket code patterns from Python docs
-- Threading from sample code
-- No copied code from other students
+- Very long patterns and excessive wildcards are rejected with `400 BAD-REQUEST`.
+- Counts may differ by mode (`exact` vs `partial`); clients should pick one explicitly.

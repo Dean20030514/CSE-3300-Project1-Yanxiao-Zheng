@@ -35,13 +35,15 @@
    python client_multi.py --host 127.0.0.1 --port 8081
    ```
 
-## Extra Features
+## Protocol (implemented subset)
 
-- **Multiple patterns**: `FIND_MULTI h?llo world`
-- **Paging**: `FIND pattern RANGE 0 10`
-- **Compression**: `FIND pattern --accept-encoding gzip`
-- **Stats**: `STATS` command
-- **Safety**: Limits on wildcards and pattern size
+- Requests:
+   - `FIND <pattern> [--range <start> <end>] [--gzip]`
+   - `COUNT <pattern>`
+- Responses:
+   - Status line: `<code> <text> <count>` (e.g., `200 OK 42`, `404 NOT-FOUND 0`, `400 BAD-REQUEST ...`)
+   - Zero or more result lines, then a line with just `END`
+- Wildcards: `?` matches exactly one character.
 
 ## Testing
 

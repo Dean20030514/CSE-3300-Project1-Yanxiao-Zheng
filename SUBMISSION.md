@@ -115,7 +115,7 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 At the end you should see `OK` (or `OK (skipped=X)`). Example:
 
-![tests ok](./screens/tests_ok.png)
+![tests ok](./screens/tests.png)
 
 > Heads-up: On Windows you may see many `ResourceWarning: unclosed socket` lines during the heavy concurrency test.
 > This is expected when many sockets open/close quickly and does **not** mean failure. The final `OK` is what matters.

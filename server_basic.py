@@ -1,28 +1,16 @@
 """
-Single-threaded TCP server for exact wildcard matching using a word list.
+Basic single-thread TCP word search server.
 
-This server implements the required application protocol for the basic part:
+- Role: serve FIND and COUNT over a line-based protocol on a static word list.
+- Request: `FIND <pattern> [--range <start> <end>] [--gzip]` | `COUNT <pattern>` | `QUIT`.
+- Response: first line `<code> <text> <count>`, optional body lines, then `END`.
+- Matching: exact-only; `?` = one char; pattern must match the whole word.
+- Paging: client flag `--range` (sent as `RANGE off lim`) slices the results.
+- Compression: client flag `--gzip` (sent as `--accept-encoding gzip`) returns one `GZIP <base64>` line.
+- Errors: `400 BAD-REQUEST`, `404 NOT-FOUND`, `503 BUSY` (all responses end with `END`).
+- Robustness: UTF-8 validation, length limits, timeouts, and light memory-pressure handling.
 
-- Commands accepted: FIND <pattern>, COUNT <pattern>, STATS, QUIT.
-- Response status line always includes a status code and a number:
-    e.g., "200 OK <count>" or "404 NOT-FOUND 0" or "400 BAD-REQUEST ...".
-- If there are matches, the response body lists each word on its own line,
-    then a line with just "END".
-
-Matching rules (exact mode):
-- '?' matches any single character.
-- '*' is supported but only as literal multi-char wildcard when present in
-    patterns; exact mode still anchors the pattern to the whole word.
-- The pattern must match the whole word length and position.
-
-Extra capabilities (helpful for testing and scalability, but not required):
-- RANGE OFFSET LIMIT: return a slice of the matches.
-- --accept-encoding gzip: compress the body; client decodes it.
-- STATS: return server metrics as text lines (still wrapped in the protocol).
-
-The code tries to be defensive: it validates input, has timeouts, and
-supports soft memory-pressure handling (clearing caches) to stay responsive.
-All comments are in simple English by request.
+Short and readable on purpose for grading and maintenance.
 """
 
 import argparse
@@ -79,7 +67,8 @@ def load_wordlist(path: str) -> List[str]:
 def handle_find(pattern: str, words: List[str], index: WordIndex | None = None) -> List[str]:
     """Find exact matches for a pattern using the index if available.
 
-    We prefer the prebuilt index for speed; fall back to a compiled regex.
+    Input: wildcard pattern (supports '?'), the word list, and optional index.
+    Output: list of matching words (exact mode). Prefers index for speed.
     """
     if index is not None:
         return index.find_exact(pattern)
@@ -222,15 +211,11 @@ def json_log(event: str, level: str = "info", **fields):
 def serve_once(conn: socket.socket, addr, words: List[str], stats: 'Stats',
                index: WordIndex,
                request_timeout: float = 30.0, max_pattern_length: int = 1000):
-    """Handle exactly one request on this connection, then return.
+    """Handle exactly one request, then return (single-shot basic server).
 
-    Protocol summary for requests handled here:
-    - FIND <pattern> [RANGE off lim] [ --accept-encoding gzip ] [ --mode exact ]
-    - FIND_MULTI <p1> <p2> ... (exact mode only here)
-    - COUNT <pattern>
-    - STATS
-    - QUIT
-    All responses end with an 'END' line.
+    Input: raw request line from the socket. Output: status, optional body, and `END`.
+    Branches: `COUNT` returns only the number; `FIND` lists words. Exact mode only.
+    Optional: paging via `RANGE off lim` and gzip via `--accept-encoding gzip`.
     """
     with conn:
         try:

@@ -1,23 +1,16 @@
 """
-Multi-threaded TCP server that supports exact and partial wildcard matching.
+Threaded TCP word search server (exact and partial modes).
 
-This is the extended server for the assignment. It serves many clients at the
-same time using threads and supports multiple queries per connection. It keeps
-the application protocol the same:
+- Role: serve many clients concurrently; allow multiple requests per connection.
+- Request: `FIND <pattern> [--range <start> <end>] [--gzip] [--mode exact|partial]` |
+    `COUNT <pattern> [--mode exact|partial]` | `QUIT`.
+- Response: first line `<code> <text> <count>`, optional body, final `END` line.
+- Modes: exact = whole-word match; partial = substring match. `?` = one char.
+- Paging & gzip: client flags `--range` and `--gzip` (translated to `RANGE` and
+    `--accept-encoding gzip`) reduce output size / bytes over the wire.
+- Errors: `400 BAD-REQUEST`, `404 NOT-FOUND`, `503 BUSY`. Every response ends with `END`.
 
-- Commands: FIND <pattern>, FIND_MULTI <p1> <p2>..., COUNT <pattern>, STATS, BATCH <json>, QUIT.
-- Status line: includes status code and a number (count of result lines or items).
-- Response body: lines followed by a final line 'END'.
-
-Modes:
-- exact: pattern must match the whole word. '?' matches 1 char; '*' matches 0+ chars.
-- partial: like wrapping the pattern in '*' on both sides; '*' in pattern also works.
-
-Extras:
-- RANGE OFFSET LIMIT to page results; --accept-encoding gzip for compressed body.
-- STATS returns server metrics; BATCH counts multiple patterns in one request.
-
-All comments are in simple English as required by the assignment.
+Kept intentionally simple and observable (stats, limits) for grading and tuning.
 """
 
 import argparse
@@ -246,10 +239,11 @@ def _effective_complexity_limits():
 def handle_connection(conn: socket.socket, addr, words: List[str], default_mode: str, stats: 'Stats',
                       index: WordIndex,
                       request_timeout: float = 30.0, max_pattern_length: int = 1000):
-    """Serve one client connection; accept multiple requests until QUIT/EOF.
+    """Serve one client; loop for multiple requests until QUIT/EOF.
 
-    We parse a single-line command, validate it, perform the operation, and
-    send back a status line plus body terminated by 'END'.
+    Input: one-line commands from the socket. Output: status, optional body, `END`.
+    Branches: `COUNT` returns only the number; `FIND` returns words (exact/partial).
+    Options: `--mode` picks matching mode; `RANGE off lim` and gzip negotiation supported.
     """
     def get_memory_rss_bytes():
         """Return current process RSS in bytes if psutil is available."""
